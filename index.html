@@ -3,18 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>US Route Explorer</title>
+  <title>US Map</title>
   <link rel="stylesheet" href="style.css">
-  <script src="app.js" defer></script>
+  <script type="module" src="app.js"></script>
 </head>
 <body>
-  <main>
-    <header><div><span class="eyebrow">POINTS → PATHS</span><h1>US Route Explorer</h1><p>Connect the cities. Explore the order.</p></div><span class="badge">14 numbered cities</span></header>
-    <section class="workspace" aria-label="Route explorer">
-      <div class="map-panel"><div class="map-heading"><h2>United States</h2><span>Alaska & Hawaii shown as insets</span></div><svg id="map" viewBox="0 0 1000 630" role="img" aria-label="United States map with numbered cities and route"><image href="us-map.svg" width="1000" height="630"/><g id="route"></g><g id="points"></g></svg><div class="legend"><span><i class="dot"></i> City</span><span><i class="line"></i> Route in sequence</span><span id="route-count"></span></div></div>
-      <aside><h2>Your route</h2><p>Enter every city number once, in the order you want to visit.</p><form id="route-form"><label for="permutation">City permutation</label><textarea id="permutation" rows="4" spellcheck="false">1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14</textarea><button type="submit">Draw route <span aria-hidden="true">↗</span></button><button type="button" id="clear" class="secondary">Clear lines</button></form><p id="status" role="status" aria-live="polite"></p><h3>City key</h3><ol id="city-list"></ol></aside>
-    </section>
-    <footer>Call <code>drawRoute([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14])</code> in the browser console. Lines connect consecutive entries; the route stays open.</footer>
-  </main>
+  <svg id="map" viewBox="0 0 1200 740" role="img" aria-label="Contiguous United States with state boundaries and numbered cities">
+    <image href="us-map.svg" width="1200" height="740"/>
+    <g id="route"></g>
+    <g id="points"></g>
+  </svg>
 </body>
 </html>

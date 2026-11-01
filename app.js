@@ -1,4 +1,52 @@
-const cities = [
+import { project } from './projection.js';
+
+let cities = [];
+
+function svgElement(tag, attributes) {
+  const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+  return element;
+}
+
+export function setCities(points) {
+  if (!Array.isArray(points) || new Set(points.map(point => point.id)).size !== points.length ||
+      points.some(point => !Number.isInteger(point.id) || !Number.isFinite(point.lat) || !Number.isFinite(point.lon) ||
+        point.lat < 24 || point.lat > 50 || point.lon < -125 || point.lon > -66)) {
+    throw new Error('Cities need unique integer IDs and coordinates within the contiguous US.');
+  }
+  cities = points.map(point => ({ ...point }));
+  document.getElementById('route').replaceChildren();
+  const markers = cities.map(city => {
+    const [x, y] = project(city);
+    const group = svgElement('g', {});
+    const title = svgElement('title', {});
+    title.textContent = `${city.id}${city.name ? `: ${city.name}` : ''}`;
+    const circle = svgElement('circle', { cx: x, cy: y, r: 4, fill: '#1d4ed8', stroke: '#fff', 'stroke-width': 1.2 });
+    const label = svgElement('text', {
+      x: x + 7, y: y - 7, fill: '#172554', 'font-size': 12, 'font-family': 'system-ui',
+      'font-weight': 600, stroke: '#fff', 'stroke-width': 3, 'paint-order': 'stroke'
+    });
+    label.textContent = city.id;
+    group.append(title, circle, label);
+    return group;
+  });
+  document.getElementById('points').replaceChildren(...markers);
+}
+
+export function drawRoute(permutation) {
+  const byId = new Map(cities.map(city => [city.id, city]));
+  if (!Array.isArray(permutation) || permutation.length !== cities.length ||
+      new Set(permutation).size !== cities.length || permutation.some(id => !byId.has(id))) {
+    throw new Error('The permutation must contain every city ID exactly once.');
+  }
+  const points = permutation.map(id => project(byId.get(id)).join(',')).join(' ');
+  document.getElementById('route').replaceChildren(...(permutation.length < 2 ? [] : [svgElement('polyline', {
+    points, fill: 'none', stroke: '#2563eb', 'stroke-width': 1.8,
+    'stroke-linejoin': 'round', 'stroke-linecap': 'round'
+  })]));
+}
+
+setCities([
   {id:1,name:'Seattle',lat:47.6062,lon:-122.3321},
   {id:2,name:'San Francisco',lat:37.7749,lon:-122.4194},
   {id:3,name:'Los Angeles',lat:34.0522,lon:-118.2437},
@@ -10,72 +58,5 @@ const cities = [
   {id:9,name:'Miami',lat:25.7617,lon:-80.1918},
   {id:10,name:'Washington, DC',lat:38.9072,lon:-77.0369},
   {id:11,name:'New York',lat:40.7128,lon:-74.006},
-  {id:12,name:'Boston',lat:42.3601,lon:-71.0589},
-  {id:13,name:'Anchorage',lat:61.2181,lon:-149.9003},
-  {id:14,name:'Honolulu',lat:21.3099,lon:-157.8581}
-];
-
-function project({lat,lon}) {
-  if (lat > 50) return [(lon + 180) * 5 + 40, (72 - lat) * 5 + 430];
-  if (lon < -130) return [(lon + 161) * 20 + 330, (23 - lat) * 20 + 480];
-  return [(lon + 125) * 15 + 45, (50 - lat) * 17 + 40];
-}
-
-function svgElement(tag, attributes) {
-  const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
-  for (const [name,value] of Object.entries(attributes)) element.setAttribute(name,value);
-  return element;
-}
-
-function drawRoute(permutation) {
-  if (!Array.isArray(permutation) || permutation.length !== cities.length ||
-      new Set(permutation).size !== cities.length ||
-      permutation.some(id => !Number.isInteger(id) || !cities.some(city => city.id === id))) {
-    throw new Error(`Use every city ID from 1 to ${cities.length} exactly once.`);
-  }
-  const points = permutation.map(id => project(cities.find(city => city.id === id)).join(',')).join(' ');
-  document.getElementById('route').replaceChildren(svgElement('polyline', {
-    points, fill:'none', stroke:'#cc803b', 'stroke-width':3, 'stroke-linejoin':'round', 'stroke-linecap':'round'
-  }));
-  document.getElementById('route-count').textContent = `${permutation.length - 1} connections`;
-  document.getElementById('status').textContent = `Route: ${permutation.join(' → ')}`;
-  return permutation.slice();
-}
-
-window.drawRoute = drawRoute;
-
-for (const city of cities) {
-  const [cx,cy] = project(city);
-  const group = svgElement('g', {});
-  const title = svgElement('title', {});
-  title.textContent = `${city.id}: ${city.name}`;
-  const circle = svgElement('circle', {cx,cy,r:13,fill:'#235b49',stroke:'#fff','stroke-width':2});
-  const label = svgElement('text', {x:cx,y:cy,'text-anchor':'middle','dominant-baseline':'central',fill:'white','font-size':11,'font-family':'system-ui','font-weight':700});
-  label.textContent = city.id;
-  group.append(title,circle,label);
-  document.getElementById('points').append(group);
-  const item = document.createElement('li');
-  const number = document.createElement('span');
-  number.textContent = city.id;
-  item.append(number,document.createTextNode(city.name));
-  document.getElementById('city-list').append(item);
-}
-
-document.getElementById('route-form').addEventListener('submit', event => {
-  event.preventDefault();
-  try {
-    const input = document.getElementById('permutation').value.trim();
-    if (!/^\d+(?:(?:\s*,\s*|\s+)\d+)*$/.test(input)) throw new Error('Enter city numbers separated by commas or spaces.');
-    drawRoute(input.split(/[\s,]+/).map(Number));
-  } catch (error) {
-    document.getElementById('status').textContent = error.message;
-  }
-});
-
-document.getElementById('clear').addEventListener('click', () => {
-  document.getElementById('route').replaceChildren();
-  document.getElementById('route-count').textContent = '0 connections';
-  document.getElementById('status').textContent = 'Lines cleared. Enter a permutation to draw a new route.';
-});
-
-drawRoute(cities.map(city => city.id));
+  {id:12,name:'Boston',lat:42.3601,lon:-71.0589}
+]);
