@@ -39,7 +39,8 @@ export function drawRoute(permutation) {
       new Set(permutation).size !== cities.length || permutation.some(id => !byId.has(id))) {
     throw new Error('The permutation must contain every city ID exactly once.');
   }
-  const points = permutation.map(id => project(byId.get(id)).join(',')).join(' ');
+  const closedRoute = permutation.length > 1 ? [...permutation, permutation[0]] : permutation;
+  const points = closedRoute.map(id => project(byId.get(id)).join(',')).join(' ');
   document.getElementById('route').replaceChildren(...(permutation.length < 2 ? [] : [svgElement('polyline', {
     points, fill: 'none', stroke: '#2563eb', 'stroke-width': 1.8,
     'stroke-linejoin': 'round', 'stroke-linecap': 'round'
@@ -60,3 +61,5 @@ setCities([
   {id:11,name:'New York',lat:40.7128,lon:-74.006},
   {id:12,name:'Boston',lat:42.3601,lon:-71.0589}
 ]);
+
+drawRoute([1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 7]);
