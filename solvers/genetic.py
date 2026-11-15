@@ -63,7 +63,7 @@ def crossover(parent1, parent2, dist_matrix):
 
     return np.asarray(path, dtype=int)
 
-def perform_genetic(dist_matrix, pop_size, num_generations):
+def perform_genetic(dist_matrix, pop_size, num_elites, num_generations):
     N = dist_matrix.shape[0]
 
     rng = np.random.default_rng()
@@ -80,7 +80,7 @@ def perform_genetic(dist_matrix, pop_size, num_generations):
         if generation == num_generations:
             break
 
-        next_population = select_best(population, fitness, k=min(10, max(1, pop_size // 10)))
+        next_population = select_best(population, fitness, k=num_elites)
 
         while len(next_population) < pop_size:
             parent1 = select_parent(population, fitness)
@@ -91,7 +91,7 @@ def perform_genetic(dist_matrix, pop_size, num_generations):
             child = two_opt_neighbor(child) # mutation
 
             next_population.append(child)
-
+        
         population = next_population
 
     return perms, costs

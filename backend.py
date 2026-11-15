@@ -38,7 +38,7 @@ def routes():
     elif algorithm == "annealing": 
         perms, costs = perform_annealing(n_distances, alpha=0.99, steps_per_temp=N)
     elif algorithm == "genetic":
-        perms, costs = perform_genetic(n_distances, pop_size=100, num_generations=1000)
+        perms, costs = perform_genetic(n_distances, pop_size=200, num_elites=3, num_generations=250)
 
     def stream(perms):
         for index, (cost, perm) in enumerate(zip(costs, perms)):
