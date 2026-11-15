@@ -20,14 +20,9 @@ export function setCities(points) {
     const [x, y] = project(city);
     const group = svgElement('g', { class: 'city' });
     const title = svgElement('title', {});
-    title.textContent = `${city.id}${city.name ? `: ${city.name}` : ''}`;
+    title.textContent = city.name || String(city.id);
     const circle = svgElement('circle', { cx: x, cy: y, r: 2, fill: '#1d4ed8', stroke: '#fff', 'stroke-width': 0.4 });
-    const label = svgElement('text', {
-      x: x + 7, y: y - 7, fill: '#172554', 'font-size': 12, 'font-family': 'system-ui',
-      'font-weight': 600, stroke: '#fff', 'stroke-width': 3, 'paint-order': 'stroke'
-    });
-    label.textContent = city.id;
-    group.append(title, circle, label);
+    group.append(title, circle);
     return group;
   });
   document.getElementById('points').replaceChildren(...markers);
@@ -47,22 +42,93 @@ export function drawRoute(permutation) {
   })]));
 }
 
-const N = 10;
-const permutation = Array.from({ length: N }, (_, i) => i + 1);
-const response = await fetch(new URL('./cities.tsv', import.meta.url), { cache: 'no-store' });
-if (!response.ok) throw new Error(`Failed to load cities.tsv: ${response.status}`);
-const rows = (await response.text()).trim().split(/\r?\n/);
-if (!Number.isInteger(N) || N < 1 || N > rows.length) {
-  throw new Error(`N must be an integer between 1 and ${rows.length}.`);
+const form = document.getElementById('controls');
+const nInput = document.getElementById('n');
+const algorithmInput = document.getElementById('algorithm');
+const status = document.getElementById('status');
+let allCities = [];
+let source = null;
+let timer = null;
+let queue = [];
+let displayed = 0;
+let lastDisplay = 0;
+
+function stopPlayback() {
+  source?.close();
+  source = null;
+  clearTimeout(timer);
+  timer = null;
+  queue = [];
 }
-const selectedCities = rows.slice(0, N).map((row, id) => {
-  const fields = row.split('\t');
-  if (fields.length !== 3 || fields.some(field => !field.trim())) {
-    throw new Error(`Invalid city data on row ${id + 1}.`);
+
+function playNext() {
+  if (timer !== null) return;
+  if (queue.length === 0) return;
+  const delay = Math.max(0, 300 - (Date.now() - lastDisplay));
+  timer = setTimeout(() => {
+    timer = null;
+    try {
+      const tour = queue.shift();
+      drawRoute(tour.permutation);
+      lastDisplay = Date.now();
+      displayed += 1;
+      status.textContent = `${tour.final ? 'Final tour' : `Tour ${displayed}`} with cost ${tour.cost.toFixed(2)}`;
+      playNext();
+    } catch (error) {
+      stopPlayback();
+      status.textContent = error.message;
+    }
+  }, delay);
+}
+
+form.addEventListener('submit', event => {
+  event.preventDefault();
+  const N = Number(nInput.value);
+  if (!Number.isInteger(N) || N < 1 || N > allCities.length) {
+    status.textContent = `N must be between 1 and ${allCities.length}.`;
+    return;
   }
-  const [name, lat, lon] = fields;
-  return { id: id + 1, name, lat: Number(lat), lon: Number(lon) };
+  if (algorithmInput.value === 'dp' && N > 16) {
+    status.textContent = 'Use at most 16 cities for dynamic programming.';
+    return;
+  }
+  stopPlayback();
+  displayed = 0;
+  lastDisplay = 0;
+  setCities(allCities.slice(0, N));
+  status.textContent = 'Computing tours…';
+  const params = new URLSearchParams({ n: N, algorithm: algorithmInput.value });
+  source = new EventSource(`/routes?${params}`);
+  source.onmessage = event => {
+    try {
+      queue.push(JSON.parse(event.data));
+      playNext();
+    } catch (error) {
+      stopPlayback();
+      status.textContent = error.message;
+    }
+  };
+  source.addEventListener('done', () => {
+    source.close();
+    source = null;
+    playNext();
+  });
+  source.onerror = () => {
+    stopPlayback();
+    status.textContent = 'Could not load tours. Check that the backend is running and try again.';
+  };
 });
 
-setCities(selectedCities);
-drawRoute(permutation);
+try {
+  const response = await fetch('/cities.tsv');
+  if (!response.ok) throw new Error(`Failed to load cities: ${response.status}`);
+  allCities = (await response.text()).trim().split(/\r?\n/).map((row, id) => {
+    const [name, lat, lon] = row.split('\t');
+    return { id, name, lat: Number(lat), lon: Number(lon) };
+  });
+  nInput.max = allCities.length;
+  setCities(allCities.slice(0, Number(nInput.value)));
+  document.getElementById('submit').disabled = false;
+} catch (error) {
+  status.textContent = error.message;
+}

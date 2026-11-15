@@ -3,7 +3,7 @@ import math
 import numpy as np 
 import numpy.typing as npt 
 
-def perform_dp(dist_matrix: npt.NDArray) -> tuple[float, list[int]]:
+def perform_dp(dist_matrix: npt.NDArray) -> tuple[list[float], list[int]]:
 
     N = dist_matrix.shape[0]
 
@@ -35,5 +35,5 @@ def perform_dp(dist_matrix: npt.NDArray) -> tuple[float, list[int]]:
 
     path.append(0)
 
-    return dp[(1 << N) - 1, st], [path] 
+    return [path], [dp[(1 << N) - 1, st]] 
             

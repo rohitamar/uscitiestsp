@@ -1,2 +1,4 @@
-cities.tsv
-distances.tsv
+__pycache__
+solvers/__pycache__
+
+data
