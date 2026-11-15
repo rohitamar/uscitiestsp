@@ -3,7 +3,7 @@ import numpy as np
 import numpy.typing as npt 
 import random 
 
-from utils import tour_length, two_opt_neighbor
+from .utils import tour_length, two_opt_neighbor
 
 def select_best(population, fitness, k=10):
     return [p for p, _ in nsmallest(k, zip(population, fitness), key=lambda x : x[1])]
@@ -21,8 +21,8 @@ def select_parent(population, fitness):
     Take the fitness of each person, normalize it into a distribution, sample.  
     """
 
-    candidates = random.sample(population, k=3)
-    return min(candidates, key=fitness)
+    candidates = random.sample(range(len(population)), k=min(3, len(population)))
+    return population[min(candidates, key=lambda i: fitness[i])]
 
 def crossover(parent1, parent2, dist_matrix):
     """
@@ -61,7 +61,7 @@ def crossover(parent1, parent2, dist_matrix):
         path.append(nxt)
         left.remove(nxt)
 
-    return path
+    return np.asarray(path, dtype=int)
 
 def perform_genetic(dist_matrix, pop_size, num_generations):
     N = dist_matrix.shape[0]
@@ -70,21 +70,21 @@ def perform_genetic(dist_matrix, pop_size, num_generations):
     population = [rng.permutation(N) for _ in range(pop_size)]
     perms, costs = [], []
 
-    for _ in range(num_generations):
+    for generation in range(num_generations + 1):
         fitness = [tour_length(x, dist_matrix) for x in population]
 
         best_idx = int(np.argmin(fitness))
-        perms.append(population[best_idx].copy())
-        costs.append(fitness[best_idx])
+        perms.append(population[best_idx].tolist())
+        costs.append(float(fitness[best_idx]))
 
-        next_population = select_best(population, fitness, k=10)
+        if generation == num_generations:
+            break
+
+        next_population = select_best(population, fitness, k=min(10, max(1, pop_size // 10)))
 
         while len(next_population) < pop_size:
             parent1 = select_parent(population, fitness)
             parent2 = select_parent(population, fitness)
-
-            if parent1 == parent2:
-                continue 
 
             child = crossover(parent1, parent2, dist_matrix)
             # randomly pick a two-opt neighbor, mutate
@@ -92,5 +92,6 @@ def perform_genetic(dist_matrix, pop_size, num_generations):
 
             next_population.append(child)
 
+        population = next_population
+
     return perms, costs
-        
