@@ -11,17 +11,17 @@ function svgElement(tag, attributes) {
 export function setCities(points) {
   if (!Array.isArray(points) || new Set(points.map(point => point.id)).size !== points.length ||
       points.some(point => !Number.isInteger(point.id) || !Number.isFinite(point.lat) || !Number.isFinite(point.lon) ||
-        point.lat < 24 || point.lat > 50 || point.lon < -125 || point.lon > -66)) {
-    throw new Error('Cities need unique integer IDs and coordinates within the contiguous US.');
+        point.lat < -90 || point.lat > 90 || point.lon < -180 || point.lon > 180)) {
+    throw new Error('Cities need unique integer IDs and valid latitude and longitude coordinates.');
   }
   cities = points.map(point => ({ ...point }));
   document.getElementById('route').replaceChildren();
   const markers = cities.map(city => {
     const [x, y] = project(city);
-    const group = svgElement('g', {});
+    const group = svgElement('g', { class: 'city' });
     const title = svgElement('title', {});
     title.textContent = `${city.id}${city.name ? `: ${city.name}` : ''}`;
-    const circle = svgElement('circle', { cx: x, cy: y, r: 4, fill: '#1d4ed8', stroke: '#fff', 'stroke-width': 1.2 });
+    const circle = svgElement('circle', { cx: x, cy: y, r: 2, fill: '#1d4ed8', stroke: '#fff', 'stroke-width': 0.4 });
     const label = svgElement('text', {
       x: x + 7, y: y - 7, fill: '#172554', 'font-size': 12, 'font-family': 'system-ui',
       'font-weight': 600, stroke: '#fff', 'stroke-width': 3, 'paint-order': 'stroke'
@@ -47,19 +47,22 @@ export function drawRoute(permutation) {
   })]));
 }
 
-setCities([
-  {id:1,name:'Seattle',lat:47.6062,lon:-122.3321},
-  {id:2,name:'San Francisco',lat:37.7749,lon:-122.4194},
-  {id:3,name:'Los Angeles',lat:34.0522,lon:-118.2437},
-  {id:4,name:'Las Vegas',lat:36.1699,lon:-115.1398},
-  {id:5,name:'Denver',lat:39.7392,lon:-104.9903},
-  {id:6,name:'Dallas',lat:32.7767,lon:-96.797},
-  {id:7,name:'Chicago',lat:41.8781,lon:-87.6298},
-  {id:8,name:'Atlanta',lat:33.749,lon:-84.388},
-  {id:9,name:'Miami',lat:25.7617,lon:-80.1918},
-  {id:10,name:'Washington, DC',lat:38.9072,lon:-77.0369},
-  {id:11,name:'New York',lat:40.7128,lon:-74.006},
-  {id:12,name:'Boston',lat:42.3601,lon:-71.0589}
-]);
+const N = 10;
+const permutation = Array.from({ length: N }, (_, i) => i + 1);
+const response = await fetch(new URL('./cities.tsv', import.meta.url), { cache: 'no-store' });
+if (!response.ok) throw new Error(`Failed to load cities.tsv: ${response.status}`);
+const rows = (await response.text()).trim().split(/\r?\n/);
+if (!Number.isInteger(N) || N < 1 || N > rows.length) {
+  throw new Error(`N must be an integer between 1 and ${rows.length}.`);
+}
+const selectedCities = rows.slice(0, N).map((row, id) => {
+  const fields = row.split('\t');
+  if (fields.length !== 3 || fields.some(field => !field.trim())) {
+    throw new Error(`Invalid city data on row ${id + 1}.`);
+  }
+  const [name, lat, lon] = fields;
+  return { id: id + 1, name, lat: Number(lat), lon: Number(lon) };
+});
 
-drawRoute([1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 7]);
+setCities(selectedCities);
+drawRoute(permutation);
