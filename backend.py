@@ -5,6 +5,7 @@ import numpy as np
 
 from solvers.dp import perform_dp
 from solvers.annealing import perform_annealing
+from solvers.genetic import perform_genetic
 
 app = Flask(__name__)
 root = Path(__file__).resolve().parent
@@ -31,13 +32,16 @@ def routes():
 
     if N <= 2:
         perms = [list(range(N))]
+        costs = [float(sum(n_distances[i, (i + 1) % N] for i in range(N)))]
     elif algorithm == "dp":
         perms, costs = perform_dp(n_distances)
     elif algorithm == "annealing": 
         perms, costs = perform_annealing(n_distances, alpha=0.99, steps_per_temp=N)
+    elif algorithm == "genetic":
+        perms, costs = perform_genetic(n_distances, pop_size=100, num_generations=1000)
 
     def stream(perms):
-        for cost, perm in zip(costs, perms):
+        for index, (cost, perm) in enumerate(zip(costs, perms)):
             tour = {"permutation": perm, "cost": cost, "final": index == len(perms) - 1}
             yield f"data: {json.dumps(tour)}\n\n"
         yield "event: done\ndata: {}\n\n"

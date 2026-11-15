@@ -2,7 +2,7 @@ import math
 import numpy as np 
 import numpy.typing as npt 
 
-from utils import tour_length, two_opt_neighbor
+from .utils import tour_length, two_opt_neighbor
 
 def find_initial_temp(N, dist_matrix):
     """
